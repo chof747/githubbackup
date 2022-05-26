@@ -1,2 +1,4 @@
 scrapbook
-.venv
+venv
+.egg-info
+.env
