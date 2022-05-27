@@ -7,6 +7,6 @@ RUN apk add --no-cache python3 py3-pip
 WORKDIR /app
 COPY . /app
 
-RUN pip install .
+RUN pip3 install .
 
 CMD [ "github_backup", "-p", "/backup_path"]
