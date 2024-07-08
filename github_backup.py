@@ -30,7 +30,7 @@ def extract_relevant_info(repo, apikey):
     #print(re.match("(https?\:\/\/)(.*)", repo["clone_url"]))
     return {
         "name" : repo["name"],
-        "clone_url" : re.sub("(https?\:\/\/)(.*)", f'\\1{apikey}@\\2', repo["clone_url"])
+        "clone_url" : re.sub("(https?://)(.*)", f'\\1{apikey}@\\2', repo["clone_url"])
     }
 
 def repolist(apikey):
