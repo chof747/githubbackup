@@ -45,7 +45,6 @@ def cloneOrUpdateRepo(basePath, repo, url):
     repoPath = f"{basePath}/{repo}"
     if (not os.path.isdir(repoPath)):
         subprocess.run(['git', 'clone', '-q', url, repoPath])
-    
     subprocess.run(["git", "-C", repoPath, "pull", "--all", "-q"])
 
 def main():

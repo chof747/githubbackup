@@ -11,4 +11,4 @@ RUN python3 -m venv /app/venv
 RUN . /app/venv/bin/activate && pip install --upgrade pip
 RUN . /app/venv/bin/activate && pip install .
 
-CMD ["/app/venv/bin/github_backup", "-p", "/backup_path"]
+CMD ["/app/venv/bin/github_backup", "-p", "/backup_path", "-v"]
