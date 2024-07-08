@@ -8,7 +8,7 @@ WORKDIR /app
 COPY . /app
 
 RUN python3 -m venv /app/venv
-RUN . /app/venv/bin/activate && pip install --upgrade pip
-RUN . /app/venv/bin/activate && pip install -r requirements.txt
+RUN . /app/venv/bin/activate && pip3 install --upgrade pip
+RUN . /app/venv/bin/activate && pip3 install -r requirements.txt
 
 CMD ["/app/venv/bin/python3", "github_backup.py", "-p", "/backup_path", "-v"]
