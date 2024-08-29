@@ -5,6 +5,7 @@ import json
 import subprocess
 from argparse import ArgumentParser
 import os
+import sys
 from dotenv import dotenv_values
 
 PARAMETERS = {
@@ -60,9 +61,14 @@ def repolist(apikey):
 
 def cloneOrUpdateRepo(basePath, repo, url):
     repoPath = f"{basePath}/{repo}"
-    if (not os.path.isdir(repoPath)):
-        subprocess.run(['git', 'clone', '-q', url, repoPath])
-    subprocess.run(["git", "-C", repoPath, "pull", "--all", "-q"])
+    try:
+        if not os.path.isdir(repoPath):
+            result = subprocess.run(['git', 'clone', '-q', url, repoPath], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        result = subprocess.run(["git", "-C", repoPath, "pull", "--all", "-q"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    except subprocess.CalledProcessError as e:
+        print(f"Subprocess failed with return code: {e.returncode}\nCommand: {e.cmd}\nOutput: {e.stdout.decode()}\nStderr: {e.stderr.decode()}", file=sys.stderr)
+    except Exception as ex:
+        print(f"An unexpected error occurred: {ex}", file=sys.stderr)
 
 def main():
     args = cmdLineParser.parse_args()
