@@ -1,4 +1,4 @@
-FROM alpine:latest
+FROM python:3.11-alpine
 
 RUN apk add git
 RUN apk add --no-cache python3 py3-pip python3-dev build-base
