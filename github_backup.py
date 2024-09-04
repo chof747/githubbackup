@@ -2,6 +2,7 @@ import os
 import re
 import textwrap
 import time
+from typing import Tuple
 import requests
 import json
 import subprocess
@@ -92,7 +93,7 @@ def repolist(apikey):
 
     return repos
 
-def getInfo(result, repo:str) -> str:
+def getInfo(result, repo:str) -> Tuple[str, dict]:
     output = result.stdout.decode('utf-8') + result.stderr.decode('utf-8')
     
     if (output):
@@ -109,7 +110,10 @@ def getInfo(result, repo:str) -> str:
                 updated_branch = re.split(r'\s+', line)[-1]
                 updated_branches.append(updated_branch)
         
-        return f"{repo} is updated on branches: {', '.join(updated_branches)}" if (updated_branches) else ""
+        return (f"{repo} is updated on branches: {', '.join(updated_branches)}" if (updated_branches) else "", {
+            'repository' : repo,
+            'branches' : updated_branches
+        })
 
     else:
         return ''
@@ -129,15 +133,18 @@ def cloneOrUpdateRepo(basePath, repo, url, verbose = False):
                 step = 'clone'
                 result = subprocess.run(['git', 'clone', url, repoPath], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 if (verbose):
-                    logger.info(f"Added repository {repo} - additional info: {result.stdout if (result.stdout) else 'none'}")
+                    logger.info(f"Added repository {repo}", {
+                        'repository' : repo,
+
+                    })
             else:
                 # Fetching changes to the repo
                 result = None
                 step = 'fetch'
                 result = subprocess.run(["git", "-C", repoPath, "fetch", "-v"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 if (verbose):
-                    info = getInfo(result, repo)
-                    if (info): logger.info(info)
+                    message, details = getInfo(result, repo)
+                    if (message): logger.info(message, details)
 
                 # Pulling the data
                 result = None
