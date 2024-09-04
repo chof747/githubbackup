@@ -1,2 +1,4 @@
 requests>=2.27.1
 python-dotenv>=0.20.0
+paho-mqtt>=2.1.0
+git+https://github.com/chof747/mqtt-logger.git@main#egg=mqtt-logger
