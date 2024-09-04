@@ -120,11 +120,13 @@ def cloneOrUpdateRepo(basePath, repo, url, verbose = False):
 
     repoPath = f"{basePath}/{repo}"
 
-    attempts = 3;
+    attempts = 3
+    step=''
 
     while attempts > 0:
         try:
             if not os.path.isdir(repoPath):
+                step = 'clone'
                 result = subprocess.run(['git', 'clone', url, repoPath], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 if (verbose):
                     logger.info(f"Added repository {repo} - additional info: {result.stdout if (result.stdout) else 'none'}")
@@ -160,6 +162,7 @@ def cloneOrUpdateRepo(basePath, repo, url, verbose = False):
                     'stderr' : errmsg,
                     'rc' : e.returncode
                 })
+                break
 
         except Exception as ex:
             error_events += 1
@@ -170,6 +173,7 @@ def cloneOrUpdateRepo(basePath, repo, url, verbose = False):
                 'step' : step,
                 'stderr' : result.stderr.decode('utf-8') if (result) else None
             })
+            break
 
 def main():
     bt : float = time.time()
