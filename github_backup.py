@@ -12,6 +12,7 @@ import sys
 from dotenv import dotenv_values
 from mqtt_logger import MqttLoggingHandler
 import logging
+import socket 
 
 PARAMETERS = {
     **dotenv_values(),
@@ -27,7 +28,6 @@ STATE_STARTED="started"
 STATE_FINISHED="finished"
 
 UPTODATE_MESSAGE="Already up to date."
-
 CONNECTION_TIMEOUT_MESSAGE = r"Failed to connect to github\.com port 443 after \d+ ms: Could not connect to server"
 
 
@@ -36,6 +36,8 @@ cmdLineParser = ArgumentParser(
 
 cmdLineParser.add_argument('-p', '--path', metavar='path',
                            type=str, help="Path where the repos should be backuped to", required=True)
+cmdLineParser.add_argument('-u', '--user', metavar='gituser',
+                           type=str, help="GitHub application user to access RESTFul API", default=PARAMETERS["GITHUBUSER"])
 cmdLineParser.add_argument('-t', '--token', metavar='token',
                            type=str, help="GitHub application token to access RESTFul API", default=PARAMETERS["GITHUBKEY"])
 cmdLineParser.add_argument('-v', '--verbose', help="Triggers more verbose logging", action='store_true')
@@ -50,7 +52,8 @@ mqttLogHandler = MqttLoggingHandler(PARAMETERS['MQTTSERVER'],
                                     "log/githubbackup/tool", 
                                     int(PARAMETERS["MQTTPORT"]), 
                                     PARAMETERS["MQTTUSER"], 
-                                    PARAMETERS["MQTTPWD"])
+                                    PARAMETERS["MQTTPWD"],
+                                    socket.gethostname())
 
 mqttLogHandler.setFormatter(logging.Formatter("%(message)s"))
 mqttLogHandler.setLevel(logging.INFO)
@@ -59,29 +62,30 @@ logger.addHandler(mqttLogHandler)
 timout_events = 0
 error_events = 0
 
-def extract_relevant_info(repo, apikey):
+def extract_relevant_info(repo, user, apikey):
 
     #print(repo["clone_url"])
     #print(re.match("(https?\:\/\/)(.*)", repo["clone_url"]))
+    #print(re.sub("(https?://)(.*)", f'\\1{user}:{apikey}@\\2', repo["clone_url"]))
     return {
         "name" : repo["name"],
         "clone_url" : re.sub("(https?://)(.*)", f'\\1{apikey}@\\2', repo["clone_url"])
     }
 
-def repolist(apikey):
+def repolist(user, apikey):
     
     repos = []
     page = 1
 
     while True:
         response = requests.get(f"https://api.github.com/user/repos?page={page}&per_page={PER_PAGE}", headers={
-            "Authorization" : f'token {apikey}'
+            "Authorization" : f'Bearer {apikey}'
         })
 
         if (200 == response.status_code):
     
             pageresult = json.loads(response.text)
-            repos.extend([extract_relevant_info(r, apikey) for r in pageresult])
+            repos.extend([extract_relevant_info(r, user, apikey) for r in pageresult])
 
             if len(pageresult)<PER_PAGE:
                 break;
@@ -187,13 +191,14 @@ def main():
     mqttLogHandler.connect()
 
     args = cmdLineParser.parse_args()
-    repos = repolist(args.token)
+    repos = repolist(args.user, args.token)
     if (args.verbose):
         logger.info(f"Detected {len(repos)} repositories in GITHUB which will be backuped", {
             'github_count' : len(repos)
         })
 
     for repo in repos:
+        print(repo["clone_url"])
         cloneOrUpdateRepo(args.path, repo["name"], repo["clone_url"], args.verbose)
 
     et : float = time.time()
@@ -203,6 +208,7 @@ def main():
                   execution time = %(exectime).2f s
                   timeout-retries = %(timeout_retries)d
                   error-count = %(error_count)d"""), {
+        'summary' : True,
         'exectime' : (et - bt),
         'timeout_retries' : timout_events,
         'error_count' : error_events

@@ -1,6 +1,8 @@
-Backup tool for github repos
+# Backup tool for github repos
 
-# Useage
+This backup tool is scanning your github account and is creating and maintaining a local copy of all your github repositories as an on prem backup.
+
+## Useage
 
 ## How to start in test mode
 ```shell

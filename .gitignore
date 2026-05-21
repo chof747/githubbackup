@@ -2,3 +2,4 @@ scrapbook
 venv
 .egg-info
 .env
+test/
