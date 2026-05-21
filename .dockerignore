@@ -3,4 +3,5 @@ Dockerfile
 scrapbook
 *.egg-info
 .env
+.env.sample
 *.code-workspace
