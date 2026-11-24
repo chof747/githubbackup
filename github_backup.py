@@ -13,6 +13,8 @@ from dotenv import dotenv_values
 from mqtt_logger import MqttLoggingHandler
 import logging
 import socket 
+import base64
+from urllib.parse import urlsplit, urlunsplit
 
 PARAMETERS = {
     **dotenv_values(),
@@ -69,7 +71,7 @@ def extract_relevant_info(repo, user, apikey):
     #print(re.sub("(https?://)(.*)", f'\\1{user}:{apikey}@\\2', repo["clone_url"]))
     return {
         "name" : repo["name"],
-        "clone_url" : re.sub("(https?://)(.*)", f'\\1{apikey}@\\2', repo["clone_url"])
+        "clone_url" : repo["clone_url"]
     }
 
 def repolist(user, apikey):
@@ -122,7 +124,33 @@ def getInfo(result, repo:str) -> Tuple[str, dict]:
     else:
         return ''
 
-def cloneOrUpdateRepo(basePath, repo, url, verbose = False):
+def git_environment(token):
+    env = os.environ.copy()
+    # Git reads these configuration entries from the environment, not the
+    # command line or the repository's persistent configuration.
+    count = int(env.get("GIT_CONFIG_COUNT", "0"))
+    credentials = base64.b64encode(f"x-access-token:{token}".encode()).decode()
+    env[f"GIT_CONFIG_KEY_{count}"] = "http.https://github.com/.extraheader"
+    env[f"GIT_CONFIG_VALUE_{count}"] = f"Authorization: Basic {credentials}"
+    env["GIT_CONFIG_COUNT"] = str(count + 1)
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    return env
+
+
+def clean_origin_credentials(repo_path):
+    result = subprocess.run(
+        ["git", "-C", repo_path, "config", "--get", "remote.origin.url"],
+        check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
+    url = result.stdout.decode('utf-8').strip()
+    parts = urlsplit(url)
+    if parts.scheme == "https" and parts.hostname and parts.hostname.lower() == "github.com" and "@" in parts.netloc:
+        clean_url = urlunsplit((parts.scheme, parts.netloc.rsplit("@", 1)[1], parts.path, parts.query, parts.fragment))
+        subprocess.run(["git", "-C", repo_path, "remote", "set-url", "origin", clean_url],
+                       check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+
+def cloneOrUpdateRepo(basePath, repo, url, token, verbose = False):
     global timout_events
     global error_events
 
@@ -130,12 +158,13 @@ def cloneOrUpdateRepo(basePath, repo, url, verbose = False):
 
     attempts = 3
     step=''
+    env = git_environment(token)
 
     while attempts > 0:
         try:
             if not os.path.isdir(repoPath):
                 step = 'clone'
-                result = subprocess.run(['git', 'clone', url, repoPath], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                result = subprocess.run(['git', 'clone', url, repoPath], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
                 if (verbose):
                     logger.info(f"Added repository {repo}", {
                         'repository' : repo,
@@ -144,8 +173,10 @@ def cloneOrUpdateRepo(basePath, repo, url, verbose = False):
             else:
                 # Fetching changes to the repo
                 result = None
+                step = 'clean origin'
+                clean_origin_credentials(repoPath)
                 step = 'fetch'
-                result = subprocess.run(["git", "-C", repoPath, "fetch", "-v"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                result = subprocess.run(["git", "-C", repoPath, "fetch", "-v"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
                 if (verbose):
                     message, details = getInfo(result, repo)
                     if (message): logger.info(message, details)
@@ -153,7 +184,7 @@ def cloneOrUpdateRepo(basePath, repo, url, verbose = False):
                 # Pulling the data
                 result = None
                 step = 'pull'
-                result = subprocess.run(["git", "-C", repoPath, "pull"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                result = subprocess.run(["git", "-C", repoPath, "pull"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
 
                 #we are done and succesfull so break out of the while loop
                 break 
@@ -198,8 +229,7 @@ def main():
         })
 
     for repo in repos:
-        print(repo["clone_url"])
-        cloneOrUpdateRepo(args.path, repo["name"], repo["clone_url"], args.verbose)
+        cloneOrUpdateRepo(args.path, repo["name"], repo["clone_url"], args.token, args.verbose)
 
     et : float = time.time()
 
