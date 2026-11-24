@@ -1,5 +1,7 @@
 scrapbook
 venv
+.venv/
+__pycache__/
 .egg-info
 .env
 test/

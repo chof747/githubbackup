@@ -1,0 +1,14 @@
+[project]
+name = "githubbackup"
+version = "0.1.0"
+description = "Back up GitHub repositories locally"
+requires-python = ">=3.11"
+dependencies = [
+    "requests>=2.27.1",
+    "python-dotenv>=0.20.0",
+    "paho-mqtt>=2.1.0",
+    "mqtt-logger",
+]
+
+[tool.uv.sources]
+mqtt-logger = { git = "https://github.com/chof747/mqtt-logger.git", rev = "main" }
